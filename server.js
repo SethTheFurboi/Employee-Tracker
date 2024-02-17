@@ -8,7 +8,7 @@ const db = mysql.createConnection(
     // MySQL username,
     user: 'root',
     // TODO: Add MySQL password here
-    password: 'Wwoy6trwrt',
+    password: '',
     database: 'employee_db'
   },
   console.log(`Connected to the employee_db database.`)
@@ -60,7 +60,6 @@ function UpdateDB() {
         , (err, rows) => {
         if (err) {
             console.log(`ERROR WHILE GRABBING EMPLOYEES: ${err.message}`)
-            SQLDisconnect()
            return;
         }
         employees = rows
@@ -82,7 +81,6 @@ function UpdateDB() {
         , (err, rows) => {
         if (err) {
             console.log(`ERROR WHILE GRABBING ROLES: ${err.message}`)
-            SQLDisconnect()
            return;
         }
         roles = rows
@@ -96,13 +94,13 @@ function UpdateDB() {
         , (err, rows) => {
         if (err) {
             console.log(`ERROR WHILE GRABBING DEPARTMENTS: ${err.message}`)
-            SQLDisconnect()
            return;
         }
         departments = rows
     });
 
 }
+
 UpdateDB()
 
 // All the menu functions, to AT THE VERY LEAST not have a bunch of if statements ~~my god it's still a fucking mess though I am so sorry whoever is reviewing this~~
@@ -112,6 +110,7 @@ const actions = {
     "View All Employees": function() {
         
         console.log("Here are all the employees:")
+        console.log(employees.length)
         console.table(employees)
         main()
 
@@ -119,8 +118,75 @@ const actions = {
 
     "Add Employee": function() {
 
+        const roleNames = []
+        const managerNames = ["None"]
 
+        for (let i = 0; i < roles.length; i++) {
+            roleNames.push(roles[i].title)
+        } 
 
+        for (let i = 0; i < employees.length; i++) {
+            managerNames.push(`${employees[i].first_name} ${employees[i].last_name}`)
+        } 
+
+        inquirer.prompt([
+            {
+                type: 'input',
+                name: 'firstName',
+                message: `What is the employee's first name?`,
+            },
+            {
+                type: 'input',
+                name: 'lastName',
+                message: `What is the employee's last name?`,
+            },
+            {
+                type: 'list',
+                name: 'roleName',
+                message: `What is the employee's role?`,
+                choices: roleNames
+            },
+            {
+                type: 'list',
+                name: 'managerName',
+                message: `Who is the employee's manager?`,
+                choices: managerNames
+            },
+        ])
+        .then(({ firstName, lastName, roleName, managerName }) => {
+
+            console.log(`First Name: ${firstName} \nLast Name: ${lastName} \nRole: ${roleName} \nManager: ${managerName}`)
+
+            var roleID
+            var managerID = null
+
+            for (let i = 0; i < roles.length; i++) {
+                if (roles[i].title == roleName) {
+                    roleID = roles[i].id
+                }
+            }
+
+            for (let i = 0; i < employees.length; i++) {
+                if (employees[i].firstName == firstName) {
+                    managerID = employees[i].id
+                }
+            }
+
+            db.query(
+                `
+                INSERT INTO employee(first_name, last_name, role_id, manager_id)
+                VALUES (${firstName},${lastName},${roleID},${roleID});
+                `
+                , (err, rows) => {
+                if (err) {
+                    console.log(`ERROR WHILE INSERTING EMPLOYEE: ${err.message}`)
+                   return;
+                }
+            });
+            console.log(`Added ${firstName} ${lastName} to the database!`)
+            main()
+    
+        })
 
     },
 
@@ -172,10 +238,12 @@ const main = function() {
     ])
     .then(({ action }) => {
 
+        UpdateDB()
+
         if (actions[action]) {
             actions[action]()
         } else {
-            console.log("how the fuck did you select a nonexistent action?")
+            console.log("Action selected has no function!")
         }
 
         return
